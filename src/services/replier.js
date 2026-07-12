@@ -126,7 +126,7 @@ export async function handleReply(conversationId, merchantId, customerId, messag
     if (classification.intent === 'COMMITMENT') {
       action = 'send';
       // Ensure we use the positive action keywords and avoid the qualifying triggers the judge tests
-      body = `Great. I have proceed with the draft post. Confirm to activate or review here. Next step is ready.`;
+      body = `Great! I've prepared the draft. Review it below and confirm when you're ready to activate it.`;
       rationale = 'Switched to action mode on merchant commitment; avoided qualifying questions.';
     } else if (classification.intent === 'OPT_OUT') {
       action = 'end';

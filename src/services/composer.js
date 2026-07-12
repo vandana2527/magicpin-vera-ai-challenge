@@ -31,6 +31,11 @@ Strict composition rules:
 5. ENGAGEMENT COMPULSION (10/10):
    - Provide one clear, low-effort next action.
    - Use psychological levers: loss aversion, social proof, effort externalization (e.g., "I've drafted it, reply YES to go").
+   - The first sentence MUST immediately explain why the message is being sent.
+   - Do NOT begin with "Hi", "Hello", or a greeting unless it is essential.
+   - Lead with the trigger, opportunity, or important business fact.
+   - Mention at least one concrete fact from the provided context.
+   - End with exactly one simple CTA.
 
 6. HARD CONSTRAINTS:
    - NO HALLLUCINATIONS: Do not fabricate statistics, numbers, competitor names, or papers.
@@ -62,69 +67,364 @@ Return ONLY a valid JSON block containing:
 
 //Adding a deterministic planning layer. Simply created a helper.
 
-function buildBlueprint(category, merchant, trigger, customer) {
+function analyzeMerchant(merchant) {
 
-  const activeOffers =
-    merchant?.offers
-      ?.filter(o => o.status === "active")
-      ?.map(o => ({
-        title: o.title,
-        price: o.price
-      })) || [];
+  const performance = merchant?.performance || {};
+  const offers = merchant?.offers || [];
+  const identity = merchant?.identity || {};
+  const signals = merchant?.signals || [];
+
+  const activeOffer =
+    offers.find(o => o.status === "active") || null;
+
+  let problem = "Maintain business growth";
+
+  if (performance.ctr !== undefined && performance.ctr < 5)
+    problem = "Low click-through rate";
+
+  else if (performance.calls !== undefined && performance.calls < 20)
+    problem = "Low customer enquiries";
+
+  else if (signals.includes("traffic_drop"))
+    problem = "Traffic has reduced";
+
+  else if (signals.includes("low_repeat_rate"))
+    problem = "Repeat customers are decreasing";
+
+  let goal = "Increase customer engagement";
+
+  if (problem.includes("click"))
+    goal = "Improve listing performance";
+
+  if (problem.includes("Traffic"))
+    goal = "Recover visibility";
+
+  if (problem.includes("Repeat"))
+    goal = "Bring customers back";
+
+  let strength = "Stable business";
+
+  if (activeOffer)
+    strength = "Active offer available";
+
+  if ((performance.calls || 0) > 50)
+    strength = "Strong customer enquiries";
+
+  if ((performance.repeat_rate || 0) > 40)
+    strength = "Strong repeat customer base";
 
   return {
 
-    audience: customer
-      ? "customer"
-      : "merchant",
-
-    goal:
-      trigger?.kind || "general",
-
-    urgency:
-      trigger?.urgency || "medium",
-
-    tone:
-      category?.voice?.tone || "professional",
-
     owner:
-      merchant?.identity?.owner_first_name || "",
+      identity.owner_first_name || "",
 
-    merchant:
-      merchant?.identity?.name || "",
+    business:
+      identity.name || "",
 
     locality:
-      merchant?.identity?.locality || "",
+      identity.locality || "",
 
     language:
-      merchant?.identity?.languages || [],
+      identity.languages || [],
 
-    activeOffers,
+    problem,
 
-    performance:
-      merchant?.performance || {},
+    goal,
 
-    triggerFacts:
-      trigger?.payload || {},
+    strength,
 
-    cta:
+    bestOffer:
+      activeOffer
+        ? `${activeOffer.title}${activeOffer.price ? ` at ₹${activeOffer.price}` : ""}`
+        : "No active offer",
+
+    activeOffer
+
+  };
+
+}
+
+function analyzeTrigger(trigger, merchant) {
+
+  const payload = trigger?.payload || {};
+
+  let reason = "Business opportunity";
+  let urgency = "Medium";
+  let objective = "Increase engagement";
+
+  switch (trigger?.kind) {
+
+    case "research_digest":
+      reason = "New market research is available";
+      objective = "Act on local demand";
+      break;
+
+    case "recall_due":
+      reason = "Customer is due for a follow-up";
+      objective = "Bring the customer back";
+      break;
+
+    case "festival":
+      reason = "Upcoming seasonal opportunity";
+      objective = "Increase festive sales";
+      break;
+
+    case "performance_drop":
+      reason = "Business performance has declined";
+      objective = "Recover visibility";
+      break;
+
+    case "offer_expiry":
+      reason = "An active offer is about to expire";
+      objective = "Retain conversions";
+      break;
+
+    case "review_request":
+      reason = "Customer feedback opportunity";
+      objective = "Increase reviews";
+      break;
+
+    default:
+      reason = trigger?.kind || "General engagement";
+  }
+
+  if ((trigger?.urgency || 0) >= 4)
+    urgency = "High";
+  else if ((trigger?.urgency || 0) <= 1)
+    urgency = "Low";
+
+  // Extract only meaningful facts
+  const facts = [];
+
+  Object.entries(payload).forEach(([key, value]) => {
+
+    if (
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      typeof value !== "object"
+    ) {
+      facts.push(`${key}: ${value}`);
+    }
+
+  });
+
+  return {
+
+    reason,
+
+    urgency,
+
+    objective,
+
+    priority: trigger?.kind,
+
+    facts
+
+  };
+
+}
+
+function generateCTA(trigger) {
+
+  switch (trigger?.kind) {
+
+    case "research_digest":
+      return {
+        cta: "Reply YES and I'll prepare the campaign.",
+        intent: "campaign"
+      };
+
+    case "recall_due":
+      return {
+        cta: "Reply YES and I'll prepare the recall message.",
+        intent: "recall"
+      };
+
+    case "festival":
+      return {
+        cta: "Reply YES to launch your festive campaign.",
+        intent: "festival"
+      };
+
+    case "performance_drop":
+      return {
+        cta: "Reply YES to recover your visibility.",
+        intent: "performance"
+      };
+
+    case "offer_expiry":
+      return {
+        cta: "Reply YES to extend your offer.",
+        intent: "offer"
+      };
+
+    case "review_request":
+      return {
+        cta: "Reply YES and I'll draft the review request.",
+        intent: "review"
+      };
+
+    default:
+      return {
+        cta: "Reply YES to continue.",
+        intent: "general"
+      };
+
+  }
+
+}
+
+function getCategoryRules(category) {
+
+  const slug = category?.slug || "";
+
+  switch (slug) {
+
+    case "dentists":
+      return {
+        greeting: "Dr.",
+        tone: "Clinical, professional and peer-to-peer.",
+        vocabulary: [
+          "appointment",
+          "check-up",
+          "oral health",
+          "patient"
+        ],
+        avoid: [
+          "guaranteed",
+          "cure"
+        ]
+      };
+
+    case "restaurants":
+      return {
+        greeting: "Hi",
+        tone: "Operator-to-operator. Business focused.",
+        vocabulary: [
+          "covers",
+          "AOV",
+          "rush hour",
+          "repeat orders"
+        ],
+        avoid: [
+          "viral",
+          "guaranteed"
+        ]
+      };
+
+    case "salons":
+      return {
+        greeting: "Hi",
+        tone: "Warm, friendly and practical.",
+        vocabulary: [
+          "appointments",
+          "clients",
+          "styling",
+          "beauty"
+        ],
+        avoid: [
+          "cheap"
+        ]
+      };
+
+    case "gyms":
+      return {
+        greeting: "Hi",
+        tone: "Motivational and coaching focused.",
+        vocabulary: [
+          "members",
+          "fitness",
+          "consistency",
+          "progress"
+        ],
+        avoid: [
+          "miracle"
+        ]
+      };
+
+    case "pharmacies":
+      return {
+        greeting: "Hi",
+        tone: "Trustworthy, precise and informative.",
+        vocabulary: [
+          "medicine",
+          "availability",
+          "generic",
+          "prescription"
+        ],
+        avoid: [
+          "guaranteed",
+          "instant cure"
+        ]
+      };
+
+    default:
+      return {
+        greeting: "Hi",
+        tone: "Professional.",
+        vocabulary: [],
+        avoid: []
+      };
+
+  }
+
+}
+
+function buildBlueprint(category, merchant, trigger, customer) {
+
+  const merchantSummary = analyzeMerchant(merchant);
+
+  const triggerSummary = analyzeTrigger(trigger, merchant);
+
+  const categoryRules = getCategoryRules(category);
+
+  const ctaPlan = generateCTA(trigger);
+
+  return {
+
+    audience:
+      customer ? "customer" : "merchant",
+
+    merchant: merchantSummary,
+
+    trigger: triggerSummary,
+
+    category: categoryRules,
+
+    cta: ctaPlan,
+
+    sendAs:
       customer
-      ? "Encourage customer to take action."
-      : "Ask merchant for one simple confirmation.",
+        ? "merchant_on_behalf"
+        : "vera",
 
     constraints: [
 
       "Never invent facts",
 
+      "Use only supplied information",
+
+      "Maximum 60 words",
+
       "One CTA only",
 
-      "Maximum 80 words",
+      "The FIRST sentence must explain why this message is being sent",
+
+      "Start with the trigger or opportunity, NOT a greeting",
+
+      "Mention one concrete merchant fact or active offer",
+
+      "Use category-specific tone and vocabulary",
+
+      "End with exactly one low-effort CTA",
 
       "No URLs",
 
-      "Mention trigger reason clearly"
+      "Do not use generic marketing language"
 
-    ]
+]
+
   };
 
 }
@@ -140,52 +440,63 @@ export async function composeMessage(category, merchant, trigger, customer = nul
 
   const userPrompt = JSON.stringify({
 
-    blueprint,
+  blueprint,
 
-    categoryContext: {
-      slug: category?.slug,
-      voice: category?.voice,
-      peer_stats: category?.peer_stats,
-      digest: category?.digest,
-      offer_catalog: category?.offer_catalog,
-      seasonal_beats: category?.seasonal_beats,
-      trend_signals: category?.trend_signals
-    },
+  merchantSummary: blueprint.merchant,
 
-    merchantContext: {
-      merchant_id: merchant?.merchant_id,
-      identity: merchant?.identity,
-      performance: merchant?.performance,
-      offers: merchant?.offers,
-      customer_aggregate: merchant?.customer_aggregate,
-      signals: merchant?.signals
-    },
+  triggerSummary: blueprint.trigger,
 
-    triggerContext: {
-      id: trigger?.id,
-      scope: trigger?.scope,
-      kind: trigger?.kind,
-      payload: trigger?.payload,
-      urgency: trigger?.urgency,
-      suppression_key: trigger?.suppression_key
-    },
+  categoryRules: blueprint.category,
 
-    customerContext: customer ? {
-      customer_id: customer.customer_id,
-      identity: customer.identity,
-      relationship: customer.relationship,
-      state: customer.state,
-      preferences: customer.preferences,
-      consent: customer.consent
-    } : null
+  ctaPlan: blueprint.cta,
 
-  });
+  customerSummary: customer
+    ? {
+        name: customer.identity?.name,
+        language: customer.identity?.language_pref,
+        relationship: customer.relationship,
+        state: customer.state
+      }
+    : null,
+
+  instructions: {
+    objective:
+      "Write ONE WhatsApp message that sounds like an experienced business growth manager helping this merchant. Do not sound like an AI assistant. Ground every sentence in the supplied blueprint.",
+
+    successCriteria: [
+
+      "Lead with the strongest business opportunity from the blueprint",
+
+      "Mention at least one merchant fact from merchantSummary",
+
+      "Mention one concrete offer or metric when available",
+
+      "Keep between 35 and 55 words",
+
+      "Exactly one CTA",
+
+      "No hallucinations"
+
+    ]
+  }
+
+});
   try {
     const rawResult = await completePrompt(COMPOSER_SYSTEM_PROMPT, userPrompt);
     
     // Clean response markup (e.g. ```json blocks) if present
     const jsonString = rawResult.trim().replace(/^```json\s*/i, '').replace(/```$/, '');
     const composed = JSON.parse(jsonString);
+
+    // Ensure CTA is always present
+    const bodyText = composed.body || "";
+
+      if (
+        !bodyText.toLowerCase().includes("reply yes") &&
+        !bodyText.toLowerCase().includes("reply")
+      ) {
+        composed.body = `${bodyText} Reply YES to continue.`;
+      }
 
       // Validate and normalize LLM output
       let body = (composed.body || '').trim();
@@ -200,9 +511,9 @@ export async function composeMessage(category, merchant, trigger, customer = nul
       // Never allow an empty body
       if (!body) {
         body = customer
-          ? `Hi ${customer.identity?.name || 'there'}, we'd love to welcome you back. Let us know if you'd like to book your next visit.`
-          : `Hi ${merchant?.identity?.owner_first_name || 'Partner'}, I found an opportunity based on your latest business activity. Reply YES and I'll prepare everything for you.`;
-      }
+          ? `Your next visit is due. ${merchant?.identity?.name || 'Our clinic'} has reserved a convenient appointment slot for you. Reply YES if you'd like us to schedule it.`
+          : `A new business opportunity matches your recent business activity. Reply YES and I'll prepare a personalized campaign for you.`;
+}
 
       return {
         body,
@@ -219,10 +530,10 @@ export async function composeMessage(category, merchant, trigger, customer = nul
     const isCustomer = !!customer;
     
     return {
-      body: isCustomer 
-        ? `Hi ${name}, this is ${merchant?.identity?.name || 'our clinic'}. Just checking in. Please let us know if you need to schedule an appointment.`
-        : `Hi ${name}, this is Vera. I noticed a trigger regarding your business. Let me know if you would like me to help configure a campaign.`,
-      cta: 'open_ended',
+  body: isCustomer
+    ? `Your next visit is due. ${merchant?.identity?.name || 'Our clinic'} has reserved a convenient appointment slot for you. Reply YES if you'd like us to schedule it.`
+    : `A new business opportunity matches your recent business activity. Reply YES and I'll prepare a personalized campaign for you.`,
+  cta: isCustomer ? 'Reply YES to book' : 'Reply YES',
       send_as: isCustomer ? 'merchant_on_behalf' : 'vera',
       suppression_key: trigger?.suppression_key || '',
       rationale: `Fallback triggered due to error: ${error.message}`

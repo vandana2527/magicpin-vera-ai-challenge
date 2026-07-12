@@ -38,11 +38,11 @@ app.get('/v1/healthz', (req, res) => {
 // 2. GET /v1/metadata
 app.get('/v1/metadata', (req, res) => {
   res.json({
-    team_name: 'Vera Express',
-    team_members: ['Antigravity Pair Programmer'],
+    team_name: 'Vandana AI',
+    team_members: ['Vandana Sheoran'],
     model: config.llmProvider === 'gemini' ? config.gemini.model : config.openai.model,
     approach: 'Modular message composer & reply dispatcher with strict context mapping',
-    contact_email: 'antigravity@magicpin.ai',
+    contact_email: 'bibliophile2706@gmail.com',
     version: '1.1.0',
     submitted_at: new Date().toISOString()
   });
